@@ -126,3 +126,16 @@ pnpm test       → api: 1 passed / web: 1 passed — Tasks: 4 successful, 4 tot
 - ✅ `OpenAIService` + `SerperService` skeletons in `apps/api/src/ai` — present; add chat, embedding, and search methods.
 - ✅ `pgvector` extension in DB — installed via init-script.
 - ❌ Embedding-carrying Prisma model (e.g. `ContactEmbedding`) — Session 2 prerequisite.
+
+## Post-Closeout Cleanup (2026-04-22, follow-up commit)
+
+Bucket-A cleanup applied after the main Session 0 commit, at the user's request. Historical sections above describe state at close; this section records the delta.
+
+- **`"type": "module"` added** to root + `apps/api` + `apps/web` `package.json` → kills `MODULE_TYPELESS_PACKAGE_JSON` warnings on ESLint config loads.
+- **`apps/api/jest.config.js` → `jest.config.cjs`** (required by the ESM flip since the Jest config uses `module.exports`).
+- **`.mcp.json` credentials** aligned with `.env.example` (`crm_user:crm_secure_pass@…/sellline_crm` → `sellline:sellline@…/sellline`).
+- **Jest coverage wired** in `apps/api`: `pnpm --filter @sellline/api test:coverage` runs `jest --coverage`; `coverageThreshold` set to 0/0/0/0 as a placeholder gate (raise when domain tests land). `coverage/` added to `clean` script.
+- **Playwright wired** in `apps/web`: `playwright.config.ts` boots `pnpm exec next dev -p 3100` via `webServer` with test-only env stubs; `tests/smoke.spec.ts` covers landing-page render + `/app → /login` redirect for unauthenticated users. `pnpm --filter @sellline/web exec playwright install --with-deps chromium` is a one-time setup step.
+- **`apps/web/vitest.config.ts`** hardened: `include` now explicitly matches `src/**/*.{test,spec}.{ts,tsx}` so Vitest does not try to execute Playwright specs under `tests/`. Switched from `__dirname` to `fileURLToPath(import.meta.url)` since the package is now ESM.
+- **Dangling `apps/api` `test:e2e` script removed** — it referenced `./test/jest-e2e.config.js`, a file that never existed; Session 2+ will re-add it with a real config.
+- CLAUDE.md updated: `Known Limitations` section no longer lists the MODULE warnings, Playwright-unwired, or missing coverage gate.

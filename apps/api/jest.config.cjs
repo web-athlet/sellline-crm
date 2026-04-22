@@ -4,8 +4,11 @@ module.exports = {
   rootDir: 'src',
   testRegex: '.*\\.spec\\.ts$',
   transform: { '^.+\\.(t|j)s$': 'ts-jest' },
-  collectCoverageFrom: ['**/*.(t|j)s'],
+  collectCoverageFrom: ['**/*.(t|j)s', '!**/*.module.(t|j)s', '!main.ts'],
   coverageDirectory: '../coverage',
+  coverageThreshold: {
+    global: { branches: 0, functions: 0, lines: 0, statements: 0 },
+  },
   testEnvironment: 'node',
   moduleNameMapper: { '^@/(.*)$': '<rootDir>/$1' },
 };

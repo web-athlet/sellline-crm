@@ -2,6 +2,7 @@
   "name": "@sellline/api",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
@@ -9,8 +10,8 @@
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:e2e": "jest --config ./test/jest-e2e.config.js",
-    "clean": "rm -rf dist .turbo"
+    "test:coverage": "jest --coverage",
+    "clean": "rm -rf dist .turbo coverage"
   },
   "dependencies": {
     "@nestjs/bullmq": "^10.2.1",

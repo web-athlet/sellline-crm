@@ -121,7 +121,7 @@ Run everything from the repo root:
 - **Branches:** `feature/<slug>`, `fix/<slug>`, `chore/<slug>`.
 - **Code:** TypeScript `strict`, no `any`, no `console.log` (use `Logger` in NestJS, `console.info/warn/error` elsewhere). Filenames kebab-case except React components.
 - **Imports:** relative extensionless in NestJS (CommonJS) sources; `.js` suffix in ESM library packages. Use `import type { … }` for type-only imports — `@typescript-eslint/consistent-type-imports` is enforced. Observe `import/order` grouping.
-- **Tests:** Jest for api (`*.spec.ts`), Vitest for web (`*.test.ts`), Playwright for e2e (installed, not yet wired).
+- **Tests:** Jest for api (`*.spec.ts` under `src/`), Vitest for web (`*.{test,spec}.{ts,tsx}` under `src/`), Playwright for web e2e (specs under `apps/web/tests/`). Coverage: `pnpm --filter @sellline/api test:coverage` emits to `apps/api/coverage/`; thresholds are a 0/0/0/0 placeholder (raise as real tests land).
 - **API envelope:** success = `{ data, meta? }` (via `TransformInterceptor`); error = `{ error: { code, message, details?, requestId? } }` (via `AllExceptionsFilter`). `code` values are drawn from `ErrorCodeSchema` in `@sellline/shared` — never hand-roll new string codes, extend the enum.
 - **Error handling:** throw `HttpException` subclasses in NestJS with `{ code, message, details? }` as the response body. `AllExceptionsFilter` also maps Prisma `P2002 → CONFLICT` and `P2025 → NOT_FOUND`.
 - **Validation:** Zod schemas in `@sellline/shared` are the SSOT. In NestJS, wrap DTOs with `ZodValidationPipe(SomeSchema)`; validation failure yields `VALIDATION_ERROR` (400) with `error.flatten()` details.
@@ -142,8 +142,8 @@ Run everything from the repo root:
 - **Auth stub:** login is seed-only, no password check against DB, no rate limiting, no refresh tokens — Session 1 owns this.
 - **Tenant scoping:** only `User` is in `TENANT_SCOPED_MODELS`. Until Session 2 adds domain models, this is fine; but any new tenant-owned model MUST be registered or queries will leak across tenants.
 - **No initial migration:** `prisma/schema.prisma` exists but `prisma/migrations/` does not — `pnpm db:migrate` will prompt for a name on first run.
-- **Test coverage is smoke-only:** one Jest sanity test (`apps/api/src/health/health.spec.ts`) and one Vitest smoke test (`apps/web/src/__tests__/smoke.test.ts`). No Nest e2e harness, no Playwright suite wired up.
-- **Lint warning noise:** `MODULE_TYPELESS_PACKAGE_JSON` from Node on `apps/*/eslint.config.js` — cosmetic, can be silenced by adding `"type": "module"` to those package.json files. Not blocking.
+- **Test coverage is smoke-only:** one Jest sanity test (`apps/api/src/health/health.spec.ts`), one Vitest smoke test (`apps/web/src/__tests__/smoke.test.ts`), and two Playwright smoke tests (`apps/web/tests/smoke.spec.ts`). Coverage gate is 0/0/0/0 — raise it as real tests land. No Nest e2e harness (the `apps/api` `test:e2e` script was removed post-closeout since the jest-e2e config was a dangling reference; Session 2 can re-add it with a real config).
+- **Playwright browsers:** first-time setup requires `pnpm --filter @sellline/web exec playwright install --with-deps chromium` (the config uses only the chromium project to keep CI small).
 - **Health probe requires Redis at URL in env**; expect a failing health status if you run `pnpm dev` without `pnpm docker:up`.
 
 ## What Claude Should NOT Do Without Asking

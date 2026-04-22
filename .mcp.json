@@ -5,7 +5,7 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-postgres",
-        "postgresql://crm_user:crm_secure_pass@localhost:5432/sellline_crm"
+        "postgresql://sellline:sellline@localhost:5432/sellline"
       ]
     }
   }
