@@ -47,6 +47,8 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         password: { label: 'Password', type: 'password' },
       },
       authorize: async (raw) => {
+        if (env.NODE_ENV === 'production') return null;
+
         const parsed = LoginCredentialsSchema.safeParse(raw);
         if (!parsed.success) return null;
 

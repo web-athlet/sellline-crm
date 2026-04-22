@@ -21,6 +21,10 @@ import { JwtStrategy } from './jwt.strategy';
           audience: config.get('AUTH_JWT_AUDIENCE'),
           expiresIn: config.get('AUTH_JWT_EXPIRES_IN'),
         },
+        verifyOptions: {
+          issuer: config.get('AUTH_JWT_ISSUER'),
+          audience: config.get('AUTH_JWT_AUDIENCE'),
+        },
       }),
     }),
   ],

@@ -4,7 +4,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { TenantGuard } from './guards/tenant.guard';
 import type { AuthenticatedUser } from './jwt.strategy';
-import { CurrentUser } from '../common/decorators/tenant.decorator';
+import { CurrentUser } from '../common/decorators/user.decorator';
 
 @ApiTags('auth')
 @ApiBearerAuth()
