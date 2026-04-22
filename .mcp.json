@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://crm_user:crm_secure_pass@localhost:5432/sellline_crm"
+      ]
+    }
+  }
+}
