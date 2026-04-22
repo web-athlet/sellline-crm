@@ -7,11 +7,13 @@ import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const [email, setEmail] = useState('admin@acme.dev');
-  const [password, setPassword] = useState('dev');
+  const [email, setEmail] = useState(isDev ? 'admin@acme.dev' : '');
+  const [password, setPassword] = useState(isDev ? 'dev' : '');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -65,9 +67,11 @@ export function LoginForm() {
       <Button type="submit" disabled={loading} className="w-full">
         {loading ? 'Signing in…' : 'Sign in'}
       </Button>
-      <p className="text-xs text-muted-foreground">
-        Dev credentials seeded via <code>pnpm db:seed</code>.
-      </p>
+      {isDev ? (
+        <p className="text-xs text-muted-foreground">
+          Dev credentials seeded via <code>pnpm db:seed</code>.
+        </p>
+      ) : null}
     </form>
   );
 }

@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: '20.17.0'
+  NODE_VERSION: '20.19.0'
   PNPM_VERSION: '9.12.0'
 
 jobs:
@@ -109,6 +109,12 @@ jobs:
   build:
     needs: [lint, typecheck]
     runs-on: ubuntu-latest
+    env:
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-build-placeholder-secret
+      AUTH_JWT_SECRET: ci-build-placeholder-secret
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_WS_URL: ws://localhost:3001
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

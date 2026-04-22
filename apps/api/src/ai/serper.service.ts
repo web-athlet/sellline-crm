@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { type AppConfigService } from '../config/config.service';
+import { AppConfigService } from '../config/config.service';
 
 @Injectable()
 export class SerperService {

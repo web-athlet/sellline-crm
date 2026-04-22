@@ -2,6 +2,10 @@ import type { ZodTypeAny, z } from 'zod';
 
 import { auth } from '@/auth';
 
+if (typeof window !== 'undefined') {
+  throw new Error('api-client.ts is server-only — import from RSC / route handlers only');
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 export class ApiError extends Error {

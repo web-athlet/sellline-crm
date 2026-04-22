@@ -30,7 +30,7 @@ sellline-CRM is a multi-tenant CRM built as a pnpm + Turborepo monorepo. Session
 | Object store | MinIO (S3-compatible)                                                |
 | AI           | OpenAI (chat + embeddings), Serper.dev                               |
 | Mail (dev)   | MailHog (SMTP 1025, UI :8025)                                        |
-| Node / pnpm  | Node 20.17 / pnpm 9.12                                               |
+| Node / pnpm  | Node 20.19 / pnpm 9.12                                               |
 
 ## Repo Layout
 

@@ -1,14 +1,16 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Logger } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { HealthCheck, type HealthCheckService, type HealthIndicatorResult } from '@nestjs/terminus';
+import { HealthCheck, HealthCheckService, type HealthIndicatorResult } from '@nestjs/terminus';
 import { Redis } from 'ioredis';
 
-import { type AppConfigService } from '../config/config.service';
-import { type PrismaService } from '../prisma/prisma.service';
+import { AppConfigService } from '../config/config.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
+  private readonly logger = new Logger('Health');
+
   constructor(
     private readonly health: HealthCheckService,
     private readonly prisma: PrismaService,
@@ -26,7 +28,8 @@ export class HealthController {
       await this.prisma.client.$queryRaw`SELECT 1`;
       return { database: { status: 'up' } };
     } catch (err) {
-      return { database: { status: 'down', error: (err as Error).message } };
+      this.logger.error(`database probe failed: ${(err as Error).message}`);
+      return { database: { status: 'down' } };
     }
   }
 
@@ -41,7 +44,8 @@ export class HealthController {
       await client.quit();
       return { redis: { status: pong === 'PONG' ? 'up' : 'down' } };
     } catch (err) {
-      return { redis: { status: 'down', error: (err as Error).message } };
+      this.logger.error(`redis probe failed: ${(err as Error).message}`);
+      return { redis: { status: 'down' } };
     }
   }
 }

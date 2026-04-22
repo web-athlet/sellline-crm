@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { type JwtService } from '@nestjs/jwt';
-import type { JwtPayload } from '@sellline/shared';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { JwtPayloadSchema, type JwtPayload } from '@sellline/shared';
 
 @Injectable()
 export class AuthService {
@@ -11,6 +11,10 @@ export class AuthService {
   }
 
   verify(token: string): JwtPayload {
-    return this.jwt.verify<JwtPayload>(token);
+    const raw: unknown = this.jwt.verify(token);
+    const parsed = JwtPayloadSchema.safeParse(raw);
+    if (!parsed.success)
+      throw new UnauthorizedException({ code: 'UNAUTHORIZED', message: 'Invalid token payload' });
+    return parsed.data;
   }
 }

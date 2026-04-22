@@ -1,7 +1,7 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { Client as MinioClient } from 'minio';
 
-import { type AppConfigService } from '../config/config.service';
+import { AppConfigService } from '../config/config.service';
 
 @Injectable()
 export class StorageService implements OnModuleInit {
