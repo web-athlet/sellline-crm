@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['@sellline/shared'],
+  output: 'standalone',
+  transpilePackages: ['@sellline/shared-types', '@sellline/ui-components'],
   experimental: {
     typedRoutes: true,
   },

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { parseApiEnv, type ApiEnv } from '@sellline/shared';
+import { parseApiEnv, type ApiEnv } from '@sellline/shared-types';
 
 @Injectable()
 export class AppConfigService {

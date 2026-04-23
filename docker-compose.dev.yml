@@ -1,0 +1,56 @@
+name: sellline
+
+# Development overrides: mount the repo into the containers and run the dev
+# servers with hot reload. Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+include:
+  - path: infra/docker-compose.yml
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: deps
+    container_name: sellline-api-dev
+    command: pnpm --filter @sellline/api dev
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      PORT: '3001'
+    working_dir: /repo
+    volumes:
+      - .:/repo
+      - repo_node_modules:/repo/node_modules
+    ports:
+      - '3001:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: deps
+    container_name: sellline-web-dev
+    command: pnpm --filter @sellline/web dev
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      PORT: '3000'
+    working_dir: /repo
+    volumes:
+      - .:/repo
+      - repo_node_modules:/repo/node_modules
+    ports:
+      - '3000:3000'
+    depends_on:
+      - api
+
+volumes:
+  repo_node_modules:

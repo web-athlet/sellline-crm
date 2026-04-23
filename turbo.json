@@ -42,22 +42,22 @@
     "clean": {
       "cache": false
     },
-    "@sellline/database#generate": {
+    "@sellline/api#db:generate": {
       "cache": false,
-      "outputs": ["node_modules/.prisma/**", "src/generated/**"]
+      "outputs": ["node_modules/.prisma/**"]
     },
-    "@sellline/database#migrate": {
+    "@sellline/api#db:migrate": {
       "cache": false,
       "persistent": false
     },
-    "@sellline/database#seed": {
+    "@sellline/api#db:seed": {
       "cache": false
     },
-    "@sellline/database#studio": {
+    "@sellline/api#db:studio": {
       "cache": false,
       "persistent": true
     },
-    "@sellline/database#reset": {
+    "@sellline/api#db:reset": {
       "cache": false
     }
   }

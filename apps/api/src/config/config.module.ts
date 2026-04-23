@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { parseApiEnv } from '@sellline/shared';
+import { parseApiEnv } from '@sellline/shared-types';
 
 import { AppConfigService } from './config.service';
 

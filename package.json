@@ -9,7 +9,10 @@
     "pnpm": ">=9.0.0"
   },
   "scripts": {
+    "preinstall": "npx -y only-allow pnpm",
     "dev": "turbo run dev --parallel",
+    "dev:web": "pnpm --filter @sellline/web dev",
+    "dev:api": "pnpm --filter @sellline/api dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint -- --fix",
@@ -18,11 +21,11 @@
     "test:e2e": "turbo run test:e2e",
     "format": "prettier --write \"**/*.{ts,tsx,md,json,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json,yml,yaml}\"",
-    "db:generate": "pnpm --filter @sellline/database generate",
-    "db:migrate": "pnpm --filter @sellline/database migrate",
-    "db:seed": "pnpm --filter @sellline/database seed",
-    "db:studio": "pnpm --filter @sellline/database studio",
-    "db:reset": "pnpm --filter @sellline/database reset",
+    "db:generate": "pnpm --filter @sellline/api db:generate",
+    "db:migrate": "pnpm --filter @sellline/api db:migrate",
+    "db:seed": "pnpm --filter @sellline/api db:seed",
+    "db:studio": "pnpm --filter @sellline/api db:studio",
+    "db:reset": "pnpm --filter @sellline/api db:reset",
     "docker:up": "docker compose -f infra/docker-compose.yml --env-file .env up -d",
     "docker:down": "docker compose -f infra/docker-compose.yml down",
     "docker:logs": "docker compose -f infra/docker-compose.yml logs -f",
@@ -40,15 +43,6 @@
     "prettier-plugin-tailwindcss": "^0.6.8",
     "turbo": "^2.1.3",
     "typescript": "^5.4.5"
-  },
-  "lint-staged": {
-    "*.{ts,tsx,js,jsx}": [
-      "prettier --write",
-      "eslint --fix"
-    ],
-    "*.{md,json,yml,yaml}": [
-      "prettier --write"
-    ]
   },
   "commitlint": {
     "extends": [
