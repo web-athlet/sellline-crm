@@ -103,7 +103,7 @@ jobs:
           PGPASSWORD=sellline psql -h localhost -U sellline -d sellline -c "CREATE EXTENSION IF NOT EXISTS vector;"
           PGPASSWORD=sellline psql -h localhost -U sellline -d sellline -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
       - run: pnpm db:generate
-      - run: pnpm --filter @sellline/database migrate:deploy
+      - run: pnpm --filter @sellline/api db:migrate:deploy
       - run: pnpm test
 
   build:

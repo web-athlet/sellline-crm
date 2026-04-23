@@ -5,8 +5,27 @@ Multi-tenant CRM. pnpm + Turborepo monorepo with Next.js 14 frontend and NestJS 
 ## Prerequisites
 
 - Node 20.17+ (`nvm use` reads `.nvmrc`)
-- pnpm 9.12+ (`corepack enable && corepack prepare pnpm@9.12.0 --activate`)
+- **pnpm 9.12** (`corepack enable && corepack prepare pnpm@9.12.0 --activate`) — required, see [Package manager](#package-manager) below
 - Docker Desktop (for Postgres / Redis / MinIO / MailHog)
+
+## Package manager
+
+This repo is **pnpm-only**. Running `npm install` or `yarn` aborts via a `preinstall` guard. Reasons:
+
+- `workspace:*` protocol in internal dep ranges (pnpm canonical form)
+- committed `pnpm-lock.yaml` and `packageManager` pin
+- CI, Dockerfiles, and Husky hooks all invoke `pnpm`
+
+Session-0 spec → pnpm mapping:
+
+| Spec command                       | pnpm equivalent                                       |
+| ---------------------------------- | ----------------------------------------------------- |
+| `npm install`                      | `pnpm install`                                        |
+| `npm run dev --workspace=apps/web` | `pnpm dev:web` (or `pnpm --filter @sellline/web dev`) |
+| `npm run dev --workspace=apps/api` | `pnpm dev:api` (or `pnpm --filter @sellline/api dev`) |
+| `npm run type-check`               | `pnpm typecheck`                                      |
+| `npm run lint`                     | `pnpm lint`                                           |
+| `npm run build`                    | `pnpm build`                                          |
 
 ## Five-minute setup
 
@@ -35,7 +54,7 @@ Open:
 - http://localhost:3000/login sign in with `admin@acme.dev` / `dev`
 - http://localhost:3000/app dashboard (protected)
 - http://localhost:3001/api/health terminus health probe
-- http://localhost:3001/api/docs Swagger UI
+- http://localhost:3001/api Swagger UI (OpenAPI JSON at `/api/openapi.json`)
 - http://localhost:9001 MinIO console
 - http://localhost:8025 MailHog UI
 

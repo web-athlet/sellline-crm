@@ -1,0 +1,43 @@
+name: sellline
+
+# Root-level compose: runs API + Web containers alongside the backing services
+# defined in infra/docker-compose.yml. Use docker-compose.dev.yml for live-reload
+# overrides while developing locally.
+include:
+  - path: infra/docker-compose.yml
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: sellline-api
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: '3001'
+    ports:
+      - '3001:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: sellline-web
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+    ports:
+      - '3000:3000'
+    depends_on:
+      - api
+    restart: unless-stopped

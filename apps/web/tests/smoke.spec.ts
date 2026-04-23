@@ -1,12 +1,11 @@
 import { expect, test } from '@playwright/test';
 
-test('landing page renders the product name', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'sellline' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
+test('login page renders the sign-in form', async ({ page }) => {
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 });
 
-test('unauthenticated /app redirects to /login', async ({ page }) => {
-  await page.goto('/app');
+test('unauthenticated dashboard redirects to /login', async ({ page }) => {
+  await page.goto('/');
   await expect(page).toHaveURL(/\/login/);
 });

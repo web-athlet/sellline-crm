@@ -88,23 +88,25 @@ docs/
 
 ## Commands
 
-Run everything from the repo root:
+Run everything from the repo root. **Do not use `npm` or `yarn`** — a `preinstall` guard (`npx -y only-allow pnpm`) aborts those. Reason: `workspace:*` internal ranges, committed `pnpm-lock.yaml`, `packageManager` pin in `package.json`, and all CI / Docker / Husky entry-points invoke `pnpm`. The Session-0 acceptance text uses `npm install` / `npm run dev --workspace=…` — the pnpm equivalents (`pnpm install`, `pnpm dev:web`, `pnpm dev:api`) are the authoritative forms here.
 
-| Command            | What it does                              |
-| ------------------ | ----------------------------------------- |
-| `pnpm install`     | install workspace deps                    |
-| `pnpm docker:up`   | start postgres / redis / minio / mailhog  |
-| `pnpm docker:down` | stop containers                           |
-| `pnpm docker:nuke` | stop + drop all volumes (destructive)     |
-| `pnpm db:generate` | prisma generate                           |
-| `pnpm db:migrate`  | prisma migrate dev                        |
-| `pnpm db:seed`     | seed Acme tenant + admin@acme.dev user    |
-| `pnpm db:studio`   | Prisma Studio on :5555                    |
-| `pnpm dev`         | web + api in parallel (turbo)             |
-| `pnpm build`       | build all packages + apps                 |
-| `pnpm lint`        | eslint across the monorepo                |
-| `pnpm typecheck`   | tsc --noEmit across the monorepo          |
-| `pnpm test`        | Jest (api) + Vitest (web) + package tests |
+| Command            | What it does                                  |
+| ------------------ | --------------------------------------------- |
+| `pnpm install`     | install workspace deps                        |
+| `pnpm dev:web`     | run only @sellline/web (alias for `--filter`) |
+| `pnpm dev:api`     | run only @sellline/api (alias for `--filter`) |
+| `pnpm docker:up`   | start postgres / redis / minio / mailhog      |
+| `pnpm docker:down` | stop containers                               |
+| `pnpm docker:nuke` | stop + drop all volumes (destructive)         |
+| `pnpm db:generate` | prisma generate                               |
+| `pnpm db:migrate`  | prisma migrate dev                            |
+| `pnpm db:seed`     | seed Acme tenant + admin@acme.dev user        |
+| `pnpm db:studio`   | Prisma Studio on :5555                        |
+| `pnpm dev`         | web + api in parallel (turbo)                 |
+| `pnpm build`       | build all packages + apps                     |
+| `pnpm lint`        | eslint across the monorepo                    |
+| `pnpm typecheck`   | tsc --noEmit across the monorepo              |
+| `pnpm test`        | Jest (api) + Vitest (web) + package tests     |
 
 ## Architecture Principles
 
