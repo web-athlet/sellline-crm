@@ -43,9 +43,8 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     try {
       const payload = this.auth.verify(token);
       client.data.userId = payload.sub;
-      client.data.tenantId = payload.tid;
       client.data.email = payload.email;
-      this.logger.log(`connect ${client.id} tenant=${payload.tid}`);
+      this.logger.log(`connect ${client.id} user=${payload.sub}`);
     } catch {
       this.logger.warn(`reject ${client.id}: invalid token`);
       client.disconnect(true);

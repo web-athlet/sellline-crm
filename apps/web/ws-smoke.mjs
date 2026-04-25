@@ -18,7 +18,7 @@ const ISS = env.AUTH_JWT_ISSUER;
 const AUD = env.AUTH_JWT_AUDIENCE;
 
 async function mintToken() {
-  return await new SignJWT({ sub: 'seed-admin', tid: 'seed-tenant', email: 'admin@acme.dev' })
+  return await new SignJWT({ sub: 'seed-admin', email: 'admin@demo.de' })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setIssuer(ISS)

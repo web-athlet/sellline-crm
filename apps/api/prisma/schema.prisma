@@ -1,3 +1,17 @@
+// sellline CRM — Prisma schema (Session 1)
+//
+// Design principles:
+//   - Single-tenant per deployment (DSGVO: one customer = one DB on an EU server).
+//   - Soft-delete: every user-facing entity carries `deletedAt DateTime?` with an
+//     index; services MUST filter on it. Pipelines/Stages soft-delete does NOT
+//     cascade into deals (UI warns instead); orgs soft-delete leaves Person.orgId
+//     intact until a service nullifies it explicitly.
+//   - DSGVO: Email bodies stored AES-256-GCM-encrypted (ciphertext + iv + authTag
+//     in a single JSON blob), unencrypted 200-char preview for list views.
+//   - pgvector for semantic search on Organization enrichment + (later) Person /
+//     Deal embeddings. 1536 dims aligns with OpenAI text-embedding-3-small.
+//   - Audit log is append-only, 7-year retention (checked via @@index([createdAt])).
+
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["postgresqlExtensions"]
@@ -9,30 +23,529 @@ datasource db {
   extensions = [pgvector(map: "vector"), pg_trgm]
 }
 
-model Tenant {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
 
-  users User[]
-
-  @@map("tenants")
+enum Role {
+  ADMIN
+  MANAGER
+  SALES_REP
+  READ_ONLY
 }
 
+enum ActivityType {
+  CALL
+  MEETING
+  TASK
+  DEADLINE
+  EMAIL
+  LUNCH
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum DiscountType {
+  PERCENT
+  ABSOLUTE
+}
+
+enum EnrichmentStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  PAUSED
+  FAILED
+}
+
+enum ProjectStatus {
+  KICKOFF
+  PLANNING
+  IMPLEMENTATION
+  REVIEW
+  CLOSING
+}
+
+// ---------------------------------------------------------------------------
+// Identity & Auth
+// ---------------------------------------------------------------------------
+
 model User {
-  id           String   @id @default(cuid())
-  tenantId     String
-  email        String
-  name         String?
-  passwordHash String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  name                  String
+  role                  Role      @default(SALES_REP)
+  avatarUrl             String?
+  password              String
+  passwordChangedAt     DateTime?
+  twoFactorSecret       String?
+  twoFactorEnabled      Boolean   @default(false)
+  gmailTokenEncrypted   String?
+  outlookTokenEncrypted String?
+  gmailHistoryId        String?
+  gmailWatchExpiresAt   DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  deletedAt             DateTime?
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ownedDeals     Deal[]          @relation("DealOwner")
+  activities     Activity[]
+  campaignSender Campaign[]      @relation("CampaignSender")
+  auditLogs      AuditLog[]
+  refreshTokens  RefreshToken[]
+  passwordResets PasswordReset[]
 
-  @@unique([tenantId, email])
-  @@index([tenantId])
-  @@map("users")
+  @@index([deletedAt])
+  @@index([email, deletedAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String
+  family    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, expiresAt])
+  @@index([family])
+}
+
+model PasswordReset {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// CRM — Organizations & People
+// ---------------------------------------------------------------------------
+
+model Organization {
+  id                  String                        @id @default(uuid())
+  name                String
+  domain              String?                       @unique
+  parentOrgId         String?
+  revenue             String?
+  employeeCount       Int?
+  industry            String?
+  linkedinUrl         String?
+  website             String?
+  description         String?
+  enrichedAt          DateTime?
+  enrichedJson        Json?
+  enrichmentEmbedding Unsupported("vector(1536)")?
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
+  deletedAt           DateTime?
+
+  parent     Organization?  @relation("OrgHierarchy", fields: [parentOrgId], references: [id])
+  children   Organization[] @relation("OrgHierarchy")
+  persons    Person[]
+  deals      Deal[]         @relation("OrgDeals")
+  activities Activity[]
+
+  @@index([domain, deletedAt])
+  @@index([deletedAt])
+}
+
+model Person {
+  id          String    @id @default(uuid())
+  firstName   String
+  lastName    String
+  emails      String[]
+  phones      String[]
+  orgId       String?
+  ownerId     String?
+  notes       String?
+  optIn       Boolean   @default(false)
+  optInSource String?
+  optInAt     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  org                Organization?     @relation(fields: [orgId], references: [id])
+  dealParticipations Deal[]            @relation("DealParticipants")
+  activities         Activity[]        @relation("ActivityPerson")
+  campaignContacts   CampaignContact[]
+
+  @@index([orgId, deletedAt])
+  @@index([deletedAt])
+  @@index([firstName, lastName])
+}
+
+// ---------------------------------------------------------------------------
+// CRM — Pipelines, Stages, Deals
+// ---------------------------------------------------------------------------
+
+model Pipeline {
+  id               String    @id @default(uuid())
+  name             String
+  rotThresholdDays Int       @default(7)
+  isDefault        Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  stages Stage[]
+  deals  Deal[]
+
+  @@index([deletedAt])
+}
+
+model Stage {
+  id         String    @id @default(uuid())
+  pipelineId String
+  name       String
+  order      Int
+  color      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id])
+  deals    Deal[]
+
+  @@unique([pipelineId, order])
+  @@index([pipelineId, deletedAt])
+}
+
+model Deal {
+  id                   String    @id @default(uuid())
+  title                String
+  value                Decimal   @default(0) @db.Decimal(14, 2)
+  currency             String    @default("EUR")
+  stageId              String
+  pipelineId           String
+  ownerId              String
+  organizationId       String?
+  probability          Int       @default(0)
+  rotIndicator         Boolean   @default(false)
+  scoreUpdatedAt       DateTime?
+  ghostingSnoozedUntil DateTime?
+  closedAt             DateTime?
+  wonAt                DateTime?
+  lostAt               DateTime?
+  lostReason           String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  deletedAt            DateTime?
+
+  stage        Stage         @relation(fields: [stageId], references: [id])
+  pipeline     Pipeline      @relation(fields: [pipelineId], references: [id])
+  owner        User          @relation("DealOwner", fields: [ownerId], references: [id])
+  organization Organization? @relation("OrgDeals", fields: [organizationId], references: [id])
+  activities   Activity[]
+  emails       Email[]
+  products     DealProduct[]
+  projects     Project[]
+  participants Person[]      @relation("DealParticipants")
+
+  @@index([pipelineId, stageId, deletedAt])
+  @@index([ownerId, updatedAt(sort: Desc)])
+  @@index([rotIndicator, deletedAt])
+  @@index([organizationId])
+  @@index([deletedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Activities
+// ---------------------------------------------------------------------------
+
+model Activity {
+  id         String       @id @default(uuid())
+  type       ActivityType
+  subject    String
+  notes      String?
+  dueDate    DateTime?
+  startTime  DateTime?
+  endTime    DateTime?
+  done       Boolean      @default(false)
+  doneAt     DateTime?
+  priority   Priority     @default(NORMAL)
+  dealId     String?
+  personId   String?
+  orgId      String?
+  assigneeId String
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  deletedAt  DateTime?
+
+  deal     Deal?         @relation(fields: [dealId], references: [id])
+  person   Person?       @relation("ActivityPerson", fields: [personId], references: [id])
+  org      Organization? @relation(fields: [orgId], references: [id])
+  assignee User          @relation(fields: [assigneeId], references: [id])
+
+  @@index([assigneeId, dueDate, done])
+  @@index([dealId, done, dueDate])
+  @@index([deletedAt])
+}
+
+// ---------------------------------------------------------------------------
+// E-Mail (DSGVO: body AES-256-GCM-encrypted; preview unencrypted for lists)
+// ---------------------------------------------------------------------------
+
+model Email {
+  id               String    @id @default(uuid())
+  gmailMessageId   String?   @unique
+  outlookMessageId String?   @unique
+  threadId         String
+  fromAddress      String
+  toAddresses      String[]
+  cc               String[]
+  bcc              String[]
+  subject          String
+  bodyEncrypted    String
+  bodyPreview      String
+  isRead           Boolean   @default(false)
+  isSent           Boolean   @default(false)
+  sentAt           DateTime
+  dealId           String?
+  userId           String
+  createdAt        DateTime  @default(now())
+  deletedAt        DateTime?
+
+  deal Deal? @relation(fields: [dealId], references: [id])
+
+  @@index([threadId, userId])
+  @@index([dealId])
+  @@index([userId, sentAt(sort: Desc)])
+  @@index([deletedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Produkte & Deal-Positionen
+// ---------------------------------------------------------------------------
+
+model Product {
+  id          String    @id @default(uuid())
+  name        String
+  code        String?   @unique
+  category    String?
+  unit        String?
+  billingFreq String?
+  price       Decimal   @db.Decimal(12, 2)
+  taxPct      Decimal   @default(0) @db.Decimal(5, 2)
+  currency    String    @default("EUR")
+  visibleFor  String[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  dealProducts DealProduct[]
+
+  @@index([deletedAt])
+}
+
+model DealProduct {
+  id           String       @id @default(uuid())
+  dealId       String
+  productId    String
+  quantity     Int          @default(1)
+  unitPrice    Decimal      @db.Decimal(12, 2)
+  discount     Decimal      @default(0) @db.Decimal(5, 2)
+  discountType DiscountType @default(PERCENT)
+  taxPct       Decimal      @default(0) @db.Decimal(5, 2)
+  total        Decimal      @db.Decimal(14, 2)
+
+  deal    Deal    @relation(fields: [dealId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([dealId])
+}
+
+// ---------------------------------------------------------------------------
+// Leads & Forms
+// ---------------------------------------------------------------------------
+
+model Lead {
+  id               String           @id @default(uuid())
+  source           String
+  formId           String?
+  dataJson         Json
+  enrichedJson     Json?
+  enrichmentStatus EnrichmentStatus @default(PENDING)
+  convertedDealId  String?          @unique
+  companyName      String?
+  emailDomain      String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  deletedAt        DateTime?
+
+  form Form? @relation(fields: [formId], references: [id])
+
+  @@index([enrichmentStatus, createdAt])
+  @@index([deletedAt])
+}
+
+model Form {
+  id           String    @id @default(uuid())
+  name         String
+  schemaJson   Json
+  notifyEmails String[]
+  isActive     Boolean   @default(true)
+  submissions  Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  leads Lead[]
+
+  @@index([deletedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Campaigns
+// ---------------------------------------------------------------------------
+
+model Campaign {
+  id              String         @id @default(uuid())
+  name            String
+  subject         String
+  bodyHtml        String
+  status          CampaignStatus @default(DRAFT)
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  senderId        String
+  totalRecipients Int            @default(0)
+  openCount       Int            @default(0)
+  clickCount      Int            @default(0)
+  unsubCount      Int            @default(0)
+  bounceCount     Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deletedAt       DateTime?
+
+  sender   User              @relation("CampaignSender", fields: [senderId], references: [id])
+  contacts CampaignContact[]
+
+  @@index([deletedAt])
+  @@index([senderId, sentAt(sort: Desc)])
+}
+
+model CampaignContact {
+  id             String    @id @default(uuid())
+  campaignId     String
+  personId       String
+  trackingToken  String    @unique
+  openedAt       DateTime?
+  clickedAt      DateTime?
+  unsubscribedAt DateTime?
+  bouncedAt      DateTime?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  person   Person   @relation(fields: [personId], references: [id])
+
+  @@unique([campaignId, personId])
+  @@index([trackingToken])
+}
+
+// ---------------------------------------------------------------------------
+// Projekte & Tasks
+// ---------------------------------------------------------------------------
+
+model Project {
+  id         String        @id @default(uuid())
+  name       String
+  emoji      String?
+  dealId     String?
+  templateId String?
+  status     ProjectStatus @default(KICKOFF)
+  tagsJson   Json?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  deletedAt  DateTime?
+
+  deal     Deal?            @relation(fields: [dealId], references: [id])
+  template ProjectTemplate? @relation(fields: [templateId], references: [id])
+  tasks    Task[]
+
+  @@index([dealId])
+  @@index([deletedAt])
+}
+
+model Task {
+  id          String    @id @default(uuid())
+  projectId   String
+  title       String
+  description String?
+  dueDate     DateTime?
+  done        Boolean   @default(false)
+  doneAt      DateTime?
+  assigneeId  String?
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@index([projectId, done])
+  @@index([assigneeId, done])
+}
+
+model ProjectTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  emoji     String?
+  tasksJson Json
+  createdAt DateTime @default(now())
+
+  projects Project[]
+}
+
+// ---------------------------------------------------------------------------
+// AI Insights & Audit Log
+// ---------------------------------------------------------------------------
+
+model AIInsight {
+  id         String    @id @default(uuid())
+  type       String
+  content    Json
+  validUntil DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([type, createdAt(sort: Desc)])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  tableName String
+  recordId  String
+  changes   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([tableName, recordId])
+  @@index([createdAt])
 }

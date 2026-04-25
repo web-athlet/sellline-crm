@@ -127,6 +127,85 @@ pnpm test       → api: 1 passed / web: 1 passed — Tasks: 4 successful, 4 tot
 - ✅ `pgvector` extension in DB — installed via init-script.
 - ❌ Embedding-carrying Prisma model (e.g. `ContactEmbedding`) — Session 2 prerequisite.
 
+## Post-Closeout Restructure (2026-04-24, PR #2 — `chore/restructure-monorepo`)
+
+Bucket-B restructure applied after the 2026-04-22 cleanup. Historical "Implementiert" / "AC erfüllt" sections above still describe the state at the original Session-0 close — any path that reads `packages/shared` / `packages/database` / `apps/*/src/` in those tables should be re-read against the new layout below. Commit: `1dba4ce` (167 files, +6042 / -500).
+
+### Monorepo topology changes
+
+- **`packages/shared` → `packages/shared-types`** (renamed). Same Zod SSOT, new package name `@sellline/shared-types`. Both apps updated to import `@sellline/shared-types`.
+- **`packages/database` → removed.** Prisma schema + migrations + seed + tenant-scoping extension moved into the app that owns the runtime:
+  - `packages/database/prisma/schema.prisma` → `apps/api/prisma/schema.prisma`
+  - `packages/database/src/seed.ts` → `apps/api/prisma/seed.ts`
+  - `packages/database/src/{client,with-tenant,tenant-context}.ts` → `apps/api/src/prisma/*`
+  - `pnpm db:generate|migrate|seed|studio|reset` all delegate to `pnpm --filter @sellline/api …` now.
+- **`packages/ui-components` added** (`@sellline/ui-components`) — tiny shared React primitive set (Button / Card / Input / `cn()`), tsup-built dual CJS/ESM, used by `apps/web`. `apps/web/components/ui/` remains as the shadcn surface inside the app; the workspace package is for primitives that the `apps/web` layer alone doesn't own.
+- **Dockerfiles added** — `apps/api/Dockerfile` + `apps/web/Dockerfile` (multi-stage: `deps → build → runtime`).
+- **Root compose stack added** — `docker-compose.yml` + `docker-compose.dev.yml` at the repo root. Both use `include:` to pull in `infra/docker-compose.yml`. Dev compose mounts the repo and runs `pnpm dev` inside the containers.
+
+### `apps/api` restructure
+
+- **`common/` → `shared/`** for NestJS cross-cutting helpers (decorators, filters, interceptors, pipes). A new `TenantContextInterceptor` joined the existing `LoggingInterceptor` + `TransformInterceptor`.
+- **`realtime/` → `websocket/`**, and the gateway module is now `@Global()` so feature modules can inject `WebsocketGateway` without explicit re-imports. Registers its own `JwtModule` to keep the verify path independent of `AuthModule`'s DI graph.
+- **`auth/`, `ai/` moved under `src/modules/`** to unify the feature-module layout.
+- **`src/modules/` populated with 14 domain-module stubs** — `activities`, `ai`, `auth`, `campaigns`, `contacts`, `deals`, `emails`, `insights`, `leads`, `organizations`, `products`, `projects`, `pulse-feed`, `users` — each registered in `AppModule`. Only `auth` and `ai` carry real code; the others are `@Module({})` placeholders so the boot graph is stable.
+- **`src/workers/` added** — `enrichment.worker.ts`, `scoring.worker.ts`, `ghosting.worker.ts` + `workers.module.ts` that registers the three BullMQ queues (`ENRICHMENT_QUEUE`, `SCORING_QUEUE`, `GHOSTING_QUEUE`). No job handlers yet.
+- **`src/prisma/`** now owns the Prisma client factory, tenant-context ALS, `TENANT_SCOPED_MODELS` allowlist, and `PrismaService`/`PrismaModule`. Allowlist still only contains `User`.
+- **`prisma/migrations/20260423194036_init/migration.sql` created** — declares `pg_trgm` + `vector` extensions and creates `tenants` + `users` tables with the existing indexes / FKs. This closes the "No initial migration" P2 item from the Session-0 close.
+
+### `apps/web` restructure
+
+- **Flattened — no more `src/`.** `app/`, `components/`, `lib/`, `styles/`, `__tests__/`, `auth.ts`, `env.ts`, `middleware.ts` now live directly under `apps/web/`.
+- **Route groups:** `app/(auth)/login/` for unauth pages, `app/(dashboard)/` for authed pages. `(dashboard)/layout.tsx` carries the dashboard shell; 11 placeholder feature pages were added (`activities`, `campaigns`, `contacts`, `deals`, `inbox`, `insights`, `leads`, `products`, `projects`, `pulse`).
+- **Middleware matcher widened:** was `/app/:path*`, now `/((?!login|api/auth|_next/static|_next/image|favicon.ico).*)` — everything is protected except the exceptions.
+- **Components:** `components/ui/` filled out with ~30 shadcn primitives (Alert, Avatar, Badge, Calendar, Command, Dialog, DropdownMenu, Form, Popover, ScrollArea, Select, Sheet, Sidebar, Switch, Table, Tabs, Textarea, Toast, Tooltip, etc.). `components/shared/login-form.tsx` replaces the old top-level `login-form.tsx`. `components/layout/` reserved (empty).
+- **Lib layer expanded:**
+  - `lib/api.ts` — server-only typed `apiFetch` (renamed from the old `lib/api-client.ts`; now throws if imported client-side).
+  - `lib/api-client.ts` — new client-side axios instance with bearer-from-Zustand interceptor.
+  - `lib/query-provider.tsx` — TanStack Query client wrapper.
+  - `lib/hooks/` — `use-mobile`, `use-socket`, `use-toast`.
+  - `lib/store/` — `auth-store.ts` (Zustand, persisted to `sessionStorage`).
+- **`ws-smoke.mjs` added** — standalone Node script that mints an HS256 JWT with `AUTH_JWT_SECRET` and connects to `ws://localhost:3001` three ways (valid / bad / missing token), asserting the gateway accepts/rejects correctly. Run it manually after `pnpm dev:api`.
+- **Tests relocated:** `apps/web/src/__tests__/smoke.test.ts` → `apps/web/__tests__/smoke.test.ts` (one Vitest test). `apps/web/tests/smoke.spec.ts` expanded from 1 → 2 Playwright cases.
+
+### `apps/api` test-coverage delta
+
+New Jest file — `apps/api/src/websocket/websocket.gateway.spec.ts` (5 cases): valid-JWT handshake, missing-token reject, malformed-token reject, fallback to `Authorization` header, disconnect side-effect. Last `pnpm --filter @sellline/api test:coverage` run (local, 2026-04-24): statements 30/297 (~10.1%), branches 11/121 (~9.1%), methods 3/71 (~4.2%), 26 files instrumented. Coverage gate remains the 0/0/0/0 placeholder.
+
+### Env / config delta
+
+- `.env.example` regrown to cover the container stack (API/Web service env, healthcheck URLs) — see the file for the full contract.
+- Turbo `build` task now declares all `AUTH_*`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL` envs so CI caching is correct.
+- `@sellline/api#build` runs `prisma generate && nest build`, so the generated client is rebuilt as part of the turbo graph (was previously a manual step when the schema moved).
+
+### Known Issues carried into Session 1
+
+**P1 — blocks Session 1:**
+
+- The seed-admin / seed-tenant auth stub is **unchanged** by the restructure — `apps/web/auth.ts#authorize` still returns hard-coded strings (`seed-admin`, `seed-tenant`) that don't match DB rows. Session 1 still owns the replacement. One safety improvement landed: `authorize()` now short-circuits to `null` when `NODE_ENV === 'production'`, so the stub cannot sign anyone in on a prod build.
+- **14 empty feature-module stubs** under `apps/api/src/modules/` are registered in `AppModule` but register no controllers or providers. Nest boots, but every domain route returns 404. Session 1 (users/auth) and Session 2 (contacts/deals/…) must fill them in.
+- **3 empty BullMQ worker scaffolds** under `apps/api/src/workers/` — `enrichment`, `scoring`, `ghosting`. Queue names and module wiring exist; no job handlers.
+
+**P2 — constrains Session 2+:**
+
+- `TENANT_SCOPED_MODELS` allowlist moved to `apps/api/src/prisma/with-tenant.ts` and still only contains `'User'`. Update the allowlist whenever a tenant-owned model is added.
+- `apps/web/middleware.ts` matcher is now a broad "protect everything except …" rule. When Session 1 lands real auth routes, double-check the deny-list still covers any public surfaces (e.g. marketing pages, health endpoints) we want un-gated.
+- The `apps/api` `test:e2e` script is still absent (removed in the 2026-04-22 cleanup). Session 2 can re-add with a real Nest e2e config.
+
+**P3 — cosmetic:**
+
+- `packages/ui-components` currently re-exports only `Button`, `Card`, `Input`, plus `cn()`. Decide whether to also promote the shadcn primitives in `apps/web/components/ui/` to the shared package once more than one consumer needs them (probably never — YAGNI).
+- Coverage gate (0/0/0/0) is still a placeholder despite the websocket tests raising absolute coverage ~10%. Raise it once domain modules land.
+
+### Nächste Session-Abhängigkeiten (post-restructure deltas)
+
+- **Session 1 (Auth) new path references:** `apps/web/auth.ts` (not `apps/web/src/auth.ts`), `apps/api/src/modules/auth/auth.controller.ts` (not `apps/api/src/auth/...`). The `@sellline/shared-types` package (not `@sellline/shared`) exports `LoginCredentialsSchema`, `JwtPayloadSchema`, `SessionSchema`.
+- **Session 1 DB work:** initial migration now exists — new migrations will be additive (e.g. `add-refresh-tokens`). Run `pnpm db:migrate` from repo root; it delegates to `@sellline/api`.
+- **Session 2 (Domain models):** the 14 empty module stubs give Session 2 a head start on the module skeleton; each needs controller + service + Prisma model + `TENANT_SCOPED_MODELS` entry. The `@Global()` `WebsocketGateway` is injectable repo-wide, so feature modules can emit socket events without importing `WebsocketModule`.
+- **Session 3 (AI Copilot):** `apps/api/src/modules/ai/{openai,serper}.service.ts` still present with the same API as before the restructure.
+
+---
+
 ## Post-Closeout Cleanup (2026-04-22, follow-up commit)
 
 Bucket-A cleanup applied after the main Session 0 commit, at the user's request. Historical sections above describe state at close; this section records the delta.

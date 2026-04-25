@@ -1,5 +1,4 @@
-import { LoginCredentialsSchema } from '@sellline/shared-types';
-import { SignJWT } from 'jose';
+import { LoginCredentialsSchema, LoginResponseSchema } from '@sellline/shared-types';
 import NextAuth from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
 import Credentials from 'next-auth/providers/credentials';
@@ -9,31 +8,21 @@ import { env } from '@/env';
 declare module 'next-auth' {
   interface Session {
     userId?: string;
-    tenantId?: string;
     accessToken?: string;
+    refreshToken?: string;
   }
   interface User {
-    tenantId?: string;
+    accessToken?: string;
+    refreshToken?: string;
   }
 }
 
 declare module 'next-auth/jwt' {
   interface JWT {
     userId?: string;
-    tenantId?: string;
     accessToken?: string;
+    refreshToken?: string;
   }
-}
-
-async function signApiToken(userId: string, tenantId: string, email: string): Promise<string> {
-  const secret = new TextEncoder().encode(env.AUTH_JWT_SECRET);
-  return new SignJWT({ sub: userId, tid: tenantId, email })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setIssuer(env.AUTH_JWT_ISSUER)
-    .setAudience(env.AUTH_JWT_AUDIENCE)
-    .setExpirationTime(env.AUTH_JWT_EXPIRES_IN)
-    .sign(secret);
 }
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
@@ -47,21 +36,32 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         password: { label: 'Password', type: 'password' },
       },
       authorize: async (raw) => {
-        if (env.NODE_ENV === 'production') return null;
-
         const parsed = LoginCredentialsSchema.safeParse(raw);
         if (!parsed.success) return null;
 
-        if (parsed.data.email !== 'admin@acme.dev' || parsed.data.password !== 'dev') {
+        try {
+          const res = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(parsed.data),
+          });
+          if (!res.ok) return null;
+
+          const envelope = (await res.json()) as { data?: unknown };
+          const validated = LoginResponseSchema.safeParse(envelope.data);
+          if (!validated.success) return null;
+          const { user, accessToken, refreshToken } = validated.data;
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            accessToken,
+            refreshToken,
+          };
+        } catch {
           return null;
         }
-
-        return {
-          id: 'seed-admin',
-          email: parsed.data.email,
-          name: 'Acme Admin',
-          tenantId: 'seed-tenant',
-        };
       },
     }),
   ],
@@ -69,17 +69,15 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     jwt: async ({ token, user }): Promise<JWT> => {
       if (user) {
         if (user.id) token.userId = user.id;
-        if (user.tenantId) token.tenantId = user.tenantId;
-        if (user.id && user.tenantId && user.email) {
-          token.accessToken = await signApiToken(user.id, user.tenantId, user.email);
-        }
+        if (user.accessToken) token.accessToken = user.accessToken;
+        if (user.refreshToken) token.refreshToken = user.refreshToken;
       }
       return token;
     },
     session: async ({ session, token }) => {
       if (token.userId) session.userId = token.userId;
-      if (token.tenantId) session.tenantId = token.tenantId;
       if (token.accessToken) session.accessToken = token.accessToken;
+      if (token.refreshToken) session.refreshToken = token.refreshToken;
       return session;
     },
   },
