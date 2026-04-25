@@ -244,7 +244,7 @@ Production container stack: `docker compose up` (root compose) builds `sellline-
 
 ## Backlog — Planned Next Sessions
 
-The project is running on an 18-session plan; the 6-session summary below is the compressed feature-arc view that matches `docs/sessions/*` closeouts. Session numbering in `docs/sessions/session-N-summary.md` follows the 18-session plan.
+The project is running on an 18-session plan; the session summary below is the compressed feature-arc view that matches `docs/sessions/*` closeouts. Session numbering in `docs/sessions/session-N-summary.md` follows the 18-session plan.
 
 1. **Session 3+ — Feature modules:** Contacts (`Person`), Deals, Pipelines, Stages, Activities, Notes — flesh out the empty modules under `apps/api/src/modules/{contacts,deals,activities,...}/`. REST endpoints using Zod DTOs from `@sellline/shared-types` (which needs schemas added alongside each module). Socket events via the `@Global()` `WebsocketGateway`. Soft-delete filters enforced at the service layer; consider adding the deferred `$allModels` middleware here.
 2. **Session — AI Copilot:** OpenAI chat completion, embedding ingestion (writes to `Organization.enrichmentEmbedding` initially), pgvector semantic search via `$queryRaw`, Serper web search tool. Worker: `EnrichmentWorker` picks up `Lead.enrichmentStatus = PENDING` rows.
