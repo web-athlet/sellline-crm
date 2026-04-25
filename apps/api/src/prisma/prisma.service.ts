@@ -1,11 +1,12 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import type { PrismaClient } from '@prisma/client';
 
-import { createPrismaClient, type ExtendedPrismaClient } from './client';
+import { createPrismaClient } from './client';
 
 @Injectable()
 export class PrismaService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
-  readonly client: ExtendedPrismaClient = createPrismaClient();
+  readonly client: PrismaClient = createPrismaClient();
 
   async onModuleInit(): Promise<void> {
     await this.client.$connect();

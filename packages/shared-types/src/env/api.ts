@@ -12,9 +12,11 @@ export const ApiEnvSchema = z.object({
   REDIS_URL: z.string().url(),
 
   AUTH_JWT_SECRET: z.string().min(16),
+  AUTH_JWT_REFRESH_SECRET: z.string().min(16),
   AUTH_JWT_ISSUER: z.string().default('sellline-web'),
   AUTH_JWT_AUDIENCE: z.string().default('sellline-api'),
   AUTH_JWT_EXPIRES_IN: z.string().default('1h'),
+  AUTH_JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
 
   MINIO_ENDPOINT: z.string().min(1),
   MINIO_PORT: z.coerce.number().int().positive().default(9000),

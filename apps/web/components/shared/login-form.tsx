@@ -10,8 +10,8 @@ const isDev = process.env.NODE_ENV !== 'production';
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const [email, setEmail] = useState(isDev ? 'admin@acme.dev' : '');
-  const [password, setPassword] = useState(isDev ? 'dev' : '');
+  const [email, setEmail] = useState(isDev ? 'admin@demo.de' : '');
+  const [password, setPassword] = useState(isDev ? 'Demo1234!' : '');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 

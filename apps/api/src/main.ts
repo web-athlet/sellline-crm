@@ -9,7 +9,6 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
 import { LoggingInterceptor } from './shared/interceptors/logging.interceptor';
-import { TenantContextInterceptor } from './shared/interceptors/tenant-context.interceptor';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
 
 async function bootstrap() {
@@ -27,11 +26,7 @@ async function bootstrap() {
     credentials: true,
   });
 
-  app.useGlobalInterceptors(
-    new LoggingInterceptor(),
-    new TenantContextInterceptor(),
-    new TransformInterceptor(),
-  );
+  app.useGlobalInterceptors(new LoggingInterceptor(), new TransformInterceptor());
   app.useGlobalFilters(new AllExceptionsFilter());
 
   if (env.NODE_ENV !== 'production') {

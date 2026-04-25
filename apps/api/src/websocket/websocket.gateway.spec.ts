@@ -28,7 +28,6 @@ describe('WebsocketGateway.handleConnection', () => {
   it('accepts a socket whose handshake carries a valid JWT', () => {
     const verify = jest.fn().mockReturnValue({
       sub: 'user-1',
-      tid: 'tenant-1',
       email: 'user@acme.dev',
     });
     const gateway = makeGateway({ verify });
@@ -40,7 +39,6 @@ describe('WebsocketGateway.handleConnection', () => {
     expect(client.disconnect).not.toHaveBeenCalled();
     expect(client.data).toEqual({
       userId: 'user-1',
-      tenantId: 'tenant-1',
       email: 'user@acme.dev',
     });
   });
@@ -48,7 +46,6 @@ describe('WebsocketGateway.handleConnection', () => {
   it('accepts a socket whose token is supplied via Authorization: Bearer header', () => {
     const verify = jest.fn().mockReturnValue({
       sub: 'user-2',
-      tid: 'tenant-2',
       email: 'manager@acme.dev',
     });
     const gateway = makeGateway({ verify });
