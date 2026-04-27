@@ -12,9 +12,22 @@ export const ApiEnvSchema = z.object({
   REDIS_URL: z.string().url(),
 
   AUTH_JWT_SECRET: z.string().min(16),
+  AUTH_JWT_REFRESH_SECRET: z.string().min(16),
   AUTH_JWT_ISSUER: z.string().default('sellline-web'),
   AUTH_JWT_AUDIENCE: z.string().default('sellline-api'),
-  AUTH_JWT_EXPIRES_IN: z.string().default('1h'),
+  AUTH_JWT_EXPIRES_IN: z.string().default('15m'),
+  AUTH_JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
+  INTERNAL_AUTH_SECRET: z.string().min(32).default('change-me-internal-secret-for-dev-only!!'),
+
+  GOOGLE_CLIENT_ID: z.string().min(1).default('placeholder'),
+  GOOGLE_CLIENT_SECRET: z.string().min(1).default('placeholder'),
+  MICROSOFT_CLIENT_ID: z.string().min(1).default('placeholder'),
+  MICROSOFT_CLIENT_SECRET: z.string().min(1).default('placeholder'),
+  EMAIL_ENCRYPTION_KEY: z
+    .string()
+    .length(64)
+    .default('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
+  FRONTEND_URL: z.string().url().default('http://localhost:3000'),
 
   MINIO_ENDPOINT: z.string().min(1),
   MINIO_PORT: z.coerce.number().int().positive().default(9000),

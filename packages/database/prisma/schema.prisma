@@ -9,30 +9,61 @@ datasource db {
   extensions = [pgvector(map: "vector"), pg_trgm]
 }
 
-model Tenant {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  users User[]
-
-  @@map("tenants")
+enum Role {
+  ADMIN
+  MANAGER
+  SALES_REP
+  READ_ONLY
 }
 
 model User {
-  id           String   @id @default(cuid())
-  tenantId     String
-  email        String
-  name         String?
-  passwordHash String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  name                  String
+  role                  Role      @default(SALES_REP)
+  avatarUrl             String?
+  password              String
+  passwordChangedAt     DateTime?
+  twoFactorSecret       String?
+  twoFactorEnabled      Boolean   @default(false)
+  gmailTokenEncrypted   String?
+  outlookTokenEncrypted String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  deletedAt             DateTime?
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  refreshTokens  RefreshToken[]
+  passwordResets PasswordReset[]
 
-  @@unique([tenantId, email])
-  @@index([tenantId])
-  @@map("users")
+  @@index([email])
+  @@index([deletedAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String
+  family    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([family])
+}
+
+model PasswordReset {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }

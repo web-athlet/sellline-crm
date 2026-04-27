@@ -4,6 +4,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { parseApiEnv } from '@sellline/shared';
+import cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -18,6 +19,7 @@ async function bootstrap() {
       env.NODE_ENV === 'development' ? ['log', 'warn', 'error', 'debug'] : ['log', 'warn', 'error'],
   });
 
+  app.use(cookieParser());
   app.setGlobalPrefix('api');
   app.enableCors({
     origin: env.API_CORS_ORIGIN.split(',').map((o) => o.trim()),

@@ -9,12 +9,23 @@ sellline-CRM is a multi-tenant CRM built as a pnpm + Turborepo monorepo. Session
 ## Session Status
 
 - [x] **Session 0 — Module setup & scaffolding** (closed 2026-04-22) — see [`docs/sessions/session-0-summary.md`](docs/sessions/session-0-summary.md)
-- [ ] Session 1 — Auth hardening
-- [ ] Session 2 — Domain models (Contact/Deal/Pipeline/Stage/Activity/Note)
-- [ ] Session 3 — AI Copilot
-- [ ] Session 4 — Import/Export
-- [ ] Session 5 — Observability
-- [ ] Session 6 — Deploy
+- [x] Session 1: DB-Schema & Prisma
+- [ ] Session 2: Authentication
+- [ ] Session 3: Navigation & Layout
+- [ ] Session 4: Kontakte (M8)
+- [ ] Session 5: Deals & Kanban (M3)
+- [ ] Session 6: Pulse-Feed (M1)
+- [ ] Session 7: Aktivitäten (M7)
+- [ ] Session 8: Leads (M2)
+- [ ] Session 9: Produkte (M10)
+- [ ] Session 10: Projekte (M4)
+- [ ] Session 11: E-Mail-Inbox (M6)
+- [ ] Session 12: Campaigns (M5)
+- [ ] Session 13: Insights (M9)
+- [ ] Session 14: KI-Agenten
+- [ ] Session 15: Security & DSGVO
+- [ ] Session 16a: Testing & Performance
+- [ ] Session 16b: PWA & CI/CD
 
 ## Tech Stack
 
