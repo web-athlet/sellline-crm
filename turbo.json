@@ -36,6 +36,10 @@
       "cache": false,
       "outputs": ["node_modules/.prisma/**", "src/generated/**"]
     },
+    "@sellline/database#build": {
+      "dependsOn": ["generate"],
+      "outputs": ["dist/**"]
+    },
     "@sellline/database#migrate": {
       "cache": false,
       "persistent": false
